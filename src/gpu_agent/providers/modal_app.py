@@ -20,7 +20,8 @@ STORE_NAME = "gpu-agent-runs"      # modal.Dict holding run meta, state and log 
 HF_SECRET_NAME = "gpu-agent-hf"    # Modal secret with HF_TOKEN (fine-grained, write to one namespace)
 DEFAULT_GPU = "A10"
 DEFAULT_TIMEOUT_S = 30 * 60        # every launch overrides this; it only bounds a stray direct call
-TRAIN_CMD = ["python", "/opt/train/train.py"]
+TRAIN_PYTHON = "/opt/venv/bin/python"  # training venv from train/Dockerfile, isolated from Modal's deps
+TRAIN_CMD = [TRAIN_PYTHON, "/opt/train/train.py"]
 
 
 def _train_dir() -> Path:
