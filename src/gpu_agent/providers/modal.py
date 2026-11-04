@@ -62,16 +62,21 @@ class ModalProvider(StoreBackedProvider):
         exc = self.modal.exception
         try:
             result = self.modal.FunctionCall.from_id(ref).get(timeout=0)
-        except exc.FunctionTimeoutError:  # subclass of modal TimeoutError: check first
+        except exc.FunctionTimeoutError:  # the run hit its TTL
             return CallPoll(CallStatus.TIMED_OUT, error="Modal function timeout (TTL) reached")
         except exc.OutputExpiredError:
             return CallPoll(CallStatus.FAILED, error="Modal result expired")
-        except exc.TimeoutError:
+        except TimeoutError:
+            # No output yet: still queued or running. Modal raises the *builtin* TimeoutError here,
+            # not modal.exception.TimeoutError (see FunctionCall.get / poll_function in modal 1.6).
             return CallPoll(CallStatus.RUNNING)
         except exc.InputCancellation:
             return CallPoll(CallStatus.CANCELLED)
-        except Exception as e:
+        except (exc.RemoteError, exc.ExecutionError) as e:  # the container itself crashed
             return CallPoll(CallStatus.FAILED, error=f"{type(e).__name__}: {e}")
+        except Exception as e:
+            # Anything else (network, auth) says nothing about the run: never record it as failed.
+            raise ProviderError(f"could not poll Modal call {ref}: {type(e).__name__}: {e}") from e
         return CallPoll(CallStatus.SUCCEEDED, result=result if isinstance(result, dict) else None)
 
     def _cancel(self, ref: str) -> None:

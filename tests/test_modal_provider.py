@@ -36,7 +36,7 @@ class StubModal:
     def __init__(self):
         self.calls: dict[str, StubCall] = {}
         self.spawned: list[dict] = []
-        self.next_outcome = modal.exception.TimeoutError()
+        self.next_outcome = TimeoutError()  # what modal 1.6 really raises while a call is unfinished
         self.spawn_error: Exception | None = None
         stub = self
 
@@ -98,7 +98,8 @@ def test_running_when_container_reported(p):
     (modal.exception.FunctionTimeoutError("t"), RunState.TIMED_OUT),
     (modal.exception.InputCancellation(), RunState.CANCELLED),
     (modal.exception.OutputExpiredError(), RunState.FAILED),
-    (RuntimeError("container died"), RunState.FAILED),
+    (modal.exception.RemoteError("container died"), RunState.FAILED),
+    (modal.exception.ExecutionError("bad result"), RunState.FAILED),
 ])
 def test_kills_and_crashes_override_stale_running_state(p, stub, exc, state):
     info = p.launch(JobSpec(), "A10", 900)
@@ -107,6 +108,24 @@ def test_kills_and_crashes_override_stale_running_state(p, stub, exc, state):
     st = p.status(info.run_id)
     assert st.state is state and st.finished_at is not None and st.error
     assert p.store.get(k_state(info.run_id))["state"] == state.value  # persisted
+
+
+def test_unfinished_call_is_pending_not_failed(p, stub):
+    """Regression: modal raises the builtin TimeoutError (not modal.exception.TimeoutError) on get(timeout=0)."""
+    info = p.launch(JobSpec(), "A10", 900)
+    assert isinstance(stub.calls[info.provider_ref].outcome, TimeoutError)
+    assert not isinstance(stub.calls[info.provider_ref].outcome, modal.exception.TimeoutError)
+    assert p.status(info.run_id).state is RunState.PENDING
+    assert p.store.get(k_state(info.run_id)) is None  # nothing persisted
+
+
+def test_unexpected_poll_error_is_not_recorded_as_failure(p, stub):
+    info = p.launch(JobSpec(), "A10", 900)
+    p.store.put(k_state(info.run_id), {"state": "running", "started_at": 1.0})
+    stub.calls[info.provider_ref].outcome = ConnectionError("network down")
+    with pytest.raises(ProviderError, match="network down"):
+        p.status(info.run_id)
+    assert p.store.get(k_state(info.run_id))["state"] == "running"
 
 
 def test_success_uses_runner_state(p, stub):
