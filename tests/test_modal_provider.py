@@ -188,6 +188,12 @@ def test_training_runs_in_isolated_venv():
     assert f'CMD ["{modal_app.TRAIN_PYTHON}"' in dockerfile
 
 
+def test_image_has_c_compiler_for_triton():
+    """Regression: TRL's fused loss JIT-compiles a Triton kernel, which needs gcc at run time."""
+    dockerfile = (modal_app.TRAIN_DIR / "Dockerfile").read_text()
+    assert "apt-get install" in dockerfile and " gcc " in dockerfile and "libc6-dev" in dockerfile
+
+
 def test_training_requirements_are_pinned():
     reqs = [ln.strip() for ln in (modal_app.TRAIN_DIR / "requirements.txt").read_text().splitlines()
             if ln.strip() and not ln.startswith("#")]
