@@ -47,7 +47,7 @@ tests/  bench/  docs/
 Each ends in something runnable; move on when it works. Hard **$50** total dev cloud budget.
 
 - **M0 — Spikes. DONE (2026-11-04).** Provider unknowns answered; see `docs/M0-spikes.md`.
-- **M1 — Modal end to end. BUILT, awaiting first real run.** Training image + `train.py`, provider base interface, Modal adapter, CLI launch/status/logs/stop. Done: 0.5B LoRA run pushes an adapter to the Hub.
+- **M1 — Modal end to end. DONE (2026-11-04).** Training image + `train.py`, provider base interface, Modal adapter, CLI launch/status/logs/stop. Done: 0.5B LoRA run pushes an adapter to the Hub.
 - **M2 — Ledger and guardrails.** SQLite ledger, limits file, per-run budget/TTL, watchdog with orphan sweep, Hub checkpointing. Done: a run is killed at its cap; a deliberately leaked job is swept.
 - **M3 — RunPod and Daytona adapters.** Shared contract test suite (fake + recorded). Dated pricing catalog with stale flags.
 - **M4 — Estimator and `get_quotes`.** Formula, safety margin, OOM auto-retry on next GPU size, throughput table seeded from M1–M3 runs.
@@ -63,7 +63,12 @@ Stretch (after benchmarks): spot + auto-resume, learned estimator, read-only das
 - [x] Modal adapter: deploy, spawn with per-run GPU/TTL, status, logs, stop, list. Log streaming: in-container runner writes chunks to a `modal.Dict` (cursor = chunk index).
 - [x] CLI: `quote`, `launch`, `status`, `logs`, `stop`, `list`.
 - [x] Tests: contract via fake, Modal adapter against an SDK stub, CLI, and real CPU LoRA training through the full stack.
-- [ ] 0.5B LoRA run on Modal pushes an adapter to the Hub (`examples/qwen05b-lora.json`). Needs Modal + HF credentials; record cold start, image build time and cost here.
+- [x] 0.5B LoRA run on Modal pushes an adapter to the Hub (`examples/qwen05b-lora.json`, A10): private repo `vedssharma/gpu-agent-qwen2.5-0.5b-lora-m1`. First deploy with image build took ~100 s. Cold start and cost per run are not recorded yet; capture them from `gpu-agent status` on the next run.
+
+Lessons from the first real runs (each fixed and covered by a test):
+- `FunctionCall.get(timeout=0)` raises the builtin `TimeoutError` while a call is unfinished, not `modal.exception.TimeoutError` (#2).
+- Modal image builder <= 2024.10 pip-installs its client's pinned deps into the system Python after the Dockerfile, which downgraded `typing_extensions` and broke `import torch`. Training runs from `/opt/venv`, which is kept off PATH (#3).
+- TRL's fused LM-head loss JIT-compiles a Triton kernel on CUDA, so the image needs `gcc` (#4). M0 didn't hit this because Modal's `debian_slim` has a compiler.
 
 ## M0 exit criteria
 
