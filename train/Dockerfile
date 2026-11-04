@@ -20,7 +20,14 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     HF_HUB_DISABLE_PROGRESS_BARS=1 \
+    HF_DATASETS_DISABLE_PROGRESS_BARS=1 \
     TOKENIZERS_PARALLELISM=false
+
+# Triton JIT-compiles a small C launcher the first time a kernel runs (TRL's fused LM-head loss
+# does this on CUDA), so the image needs a C compiler; python:3.12-slim ships without one.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /opt/train/requirements.txt
 RUN python -m venv /opt/venv && /opt/venv/bin/pip install -r /opt/train/requirements.txt
