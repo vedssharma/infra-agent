@@ -176,6 +176,18 @@ def test_modal_app_definition():
     assert isinstance(modal_app.run_job, modal.Function)
 
 
+def test_training_runs_in_isolated_venv():
+    """Regression: Modal's builder (<= 2024.10) downgrades packages in the system Python (it broke
+    `import torch` via typing_extensions), so training must run from its own venv, not on PATH."""
+    dockerfile = (modal_app.TRAIN_DIR / "Dockerfile").read_text()
+    venv = modal_app.TRAIN_PYTHON.removesuffix("/bin/python")
+    assert f"python -m venv {venv}" in dockerfile
+    assert f"{venv}/bin/pip install -r" in dockerfile
+    assert "ENV PATH" not in dockerfile  # else Modal's `uv pip install --system` would target the venv
+    assert modal_app.TRAIN_CMD[0] == modal_app.TRAIN_PYTHON
+    assert f'CMD ["{modal_app.TRAIN_PYTHON}"' in dockerfile
+
+
 def test_training_requirements_are_pinned():
     reqs = [ln.strip() for ln in (modal_app.TRAIN_DIR / "requirements.txt").read_text().splitlines()
             if ln.strip() and not ln.startswith("#")]
