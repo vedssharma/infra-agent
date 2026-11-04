@@ -46,7 +46,7 @@ tests/  bench/  docs/
 
 Each ends in something runnable; move on when it works. Hard **$50** total dev cloud budget.
 
-- **M0 — Spikes (≈1–2 days, <$5).** Answer the provider unknowns before writing adapters. See `docs/M0-spikes.md` for status.
+- **M0 — Spikes. DONE (2026-11-04).** Provider unknowns answered; see `docs/M0-spikes.md`.
 - **M1 — Modal end to end.** Training image + `train.py`, provider base interface, Modal adapter, CLI launch/status/logs/stop. Done: 0.5B LoRA run pushes an adapter to the Hub.
 - **M2 — Ledger and guardrails.** SQLite ledger, limits file, per-run budget/TTL, watchdog with orphan sweep, Hub checkpointing. Done: a run is killed at its cap; a deliberately leaked job is swept.
 - **M3 — RunPod and Daytona adapters.** Shared contract test suite (fake + recorded). Dated pricing catalog with stale flags.
@@ -58,11 +58,11 @@ Stretch (after benchmarks): spot + auto-resume, learned estimator, read-only das
 
 ## M0 exit criteria
 
-- [ ] Daytona GPU sandbox created via SDK; `nvidia-smi` works; GPU types and prices known; long-job survival (auto-stop) understood. *Fallback if unusable: Lambda or Vast.ai.*
-- [ ] RunPod: pod create/list/terminate via REST; GPU price query works; chosen TTL mechanism verified.
-- [ ] Modal: GPU function with `timeout=` runs; log streaming approach chosen; price list captured.
-- [ ] Hub `config.json` shape lookup works (done offline — `spikes/hf_config.py`).
-- [ ] 20-step TRL LoRA smoke run on Qwen2.5-0.5B fixes the dataset format and records peak VRAM and tokens/s.
+- [x] Daytona GPU sandbox created via SDK; `nvidia-smi` works; GPU types and prices known; native `ttl_minutes` found. *Fallback if unusable: Lambda or Vast.ai.*
+- [x] RunPod: pod create/list/terminate via REST; GPU price query works; in-container self-termination verified as the TTL mechanism.
+- [x] Modal: GPU function with `timeout=` runs; price list captured. (Log streaming approach still to choose in M1.)
+- [x] Hub `config.json` shape lookup works (`spikes/hf_config.py`).
+- [x] 20-step TRL LoRA smoke run on Qwen2.5-0.5B records peak VRAM (2.36 GiB) and tokens/s (~3,570 on A10). See `docs/M0-spikes.md`.
 
 ## Risks
 

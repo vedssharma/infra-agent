@@ -1,25 +1,37 @@
 # M0 spike status (2026-11-04)
 
-Keys were added on 2026-11-04 and the spikes were run. Results are in **Run results** below; the **Findings** section further down is from docs/web search before the runs.
+All M0 spikes were run on 2026-11-04. **M0 is complete**; total cloud spend was well under $1 of the $50 dev budget (estimated, not read from bills).
 
-## Run results (2026-11-04)
-| Provider | Result |
+## Results
+
+| Provider | Verified | Price (list) | TTL / teardown mechanism |
+|---|---|---|---|
+| **Modal** | T4 `nvidia-smi`; A10 training run. `modal run` stops the app on completion. | T4 $0.59/hr, L4 $0.80, A10 $1.10, L40S $1.95, A100-40 $2.10, A100-80 $2.50, H100 $3.95, H200 $4.54, B200 $6.25 (per-second billing; pricing page, no API; $30/mo free on Starter) | `timeout=` on the function (native) |
+| **RunPod** | GraphQL `gpuTypes` pricing; REST create/status/delete; capacity fallback list. Community cloud was sometimes sold out ("no instances currently available") and then SECURE worked; community RTX-class pod cost $0.22/hr, secure A100-80 PCIe $1.19/hr. | Queryable via API (community and secure $/hr; `securePrice: 0` seems to mean not offered) | **No native TTL.** In-container self-termination works: the pod ran `runpodctl remove pod $RUNPOD_POD_ID` after 40s and was gone at 44s. Outside DELETE returns 204. REST `cloudType` is only `SECURE` or `COMMUNITY`. |
+| **Daytona** | `daytona-gpu` snapshot gives an H100 80GB; image + `Resources(gpu=1, gpu_type=GpuType.RTX_4090)` gives an RTX 4090 (23 GiB) from `nvidia/cuda` image. | H100 $3.95/hr on-demand ($2.27 preemptible), RTX 4090 $0.99 ($0.57 preemptible) per Daytona pricing page via search, plus small CPU/RAM/disk charges; **verify on dashboard** | **Native `ttl_minutes`** (wall-clock since creation), plus `auto_stop_interval` and `auto_delete_interval`; `spot=True` option. GPU types: H100, H200, B200, B300, RTX-PRO-6000, RTX-4090, RTX-5090, MI355X. |
+
+Notes:
+- 5 older STOPPED Daytona sandboxes exist in the account that these spikes did not create.
+- No leaked pods, sandboxes or Modal apps from the spikes.
+
+## Training smoke run (Qwen2.5-0.5B, LoRA r=16, TRL 1.17.1, transformers 5.22.1, torch 2.15)
+
+20 steps, batch 4, max_len 512, bf16, Modal A10, Capybara subset:
+
+| Metric | Value |
 |---|---|
-| Modal | **Works.** `modal run` on a T4 (15 GiB) returned `nvidia-smi` output; app stopped itself on completion. |
-| RunPod | **Works.** GraphQL `gpuTypes` pricing works (community and secure $/hr, e.g. RTX 4090 $0.34 community, A100 80GB PCIe $1.19, H100 SXM $2.69); `securePrice: 0` appears to mean "not offered". After adding funds, REST pod create succeeded on the first fallback list in `SECURE` ($1.19/hr, reported via `costPerHr`), status polling showed RUNNING for ~2 min, and `DELETE /pods/{id}` returned 204; listing afterwards showed no pods. Community cloud returned "no instances currently available" for the same list, so quotes must handle sold-out capacity. REST `cloudType` accepts only `SECURE` or `COMMUNITY`. Still unverified: in-container self-termination as the TTL mechanism. |
-| Daytona | **Works.** `daytona-gpu` snapshot gave a single **H100 80GB**; `nvidia-smi` ran; sandbox deleted. Note: the snapshot gave no GPU-type choice in my script, so the default is an expensive H100. Price/hour not yet found, and must be before it can be quoted. 5 older STOPPED sandboxes exist in the account (not created by these spikes). |
+| Train time | 9.2 s (plus image build and model download not counted) |
+| Tokens processed | 32,884 (trainer-counted, non-pad) |
+| Throughput | ~3,570 tokens/s |
+| Peak VRAM allocated / reserved | 2.36 GiB / 2.75 GiB |
+| Loss | 1.89 to 1.77 |
 
-## Done
-- **Hub config lookup** — `spikes/hf_config.py` works with no key. Param estimates match the real models (Qwen2.5-0.5B ≈ 0.49B, 1.5B ≈ 1.54B). Qwen vocab is 151,936, so the fp32 logits tensor is ~2.3 GiB at 4096 tokens per step: the estimator must model it.
+First estimator check: weights 0.92 GiB + fp32 logits up to ~1.2 GiB (4 x 512 x 151,936 x 4 B) + LoRA/optimizer/activations/overhead lands in the right range of the measured 2.36 GiB. The estimator should model logits explicitly.
 
-## Findings (unverified until a key run)
-- **Daytona** docs list GPU sandboxes (H100, H200, RTX Pro 6000, RTX 4090, RTX 5090), one GPU per sandbox, ephemeral, created from the `daytona-gpu` snapshot; some third-party comparisons say the default auto-stop can kill long GPU jobs, so set `auto_stop_interval` explicitly. Other sources claim no GPU support; they appear stale. Sources: <https://www.daytona.io/changelog/nvidia-gpu-runners-and-dashboard-terminal-access>, <https://www.daytona.io/changelog/gpu-type-selector-and-windows-sandbox-class>.
-- **RunPod**: REST `terminate` action and `runpodctl pod delete` exist. A `--terminate-after` flag was claimed in search results but is **not** in the runpodctl pod reference page, so plan on in-container self-termination. Pod listing exists (`list_active` maps to it). Pricing API (GraphQL `gpuTypes`) not yet confirmed.
-- **Modal**: `timeout=` on the function is the TTL; `modal app logs` / `modal app stop` exist per third-party sources. Official price list still to capture from modal.com/pricing.
-
-## Remaining
-- [ ] Verify RunPod TTL: pod self-terminating from inside the container (create/status/terminate are done).
-- [ ] Find Daytona GPU pricing and how to pick a GPU type (changelog mentions a type selector); capture startup latency for all three.
-- [ ] Capture Modal's price list from its pricing page.
-- [ ] 20-step TRL LoRA smoke run on Qwen2.5-0.5B (`train/` does not exist yet; first task of M1 prep).
-- [ ] Decide RunPod TTL mechanism; decide Modal log streaming approach.
+## Lessons for M1
+- Return plain JSON types from Modal functions; torch objects fail to unpickle in a local env without torch. Wrap remote code and return tracebacks as strings.
+- In transformers 5, `apply_chat_template(tokenize=True)` returns a dict; don't count `len()` of it. Use the trainer's `num_tokens` log.
+- The same GPU name can differ slightly across runs (A10 vs A10G); key throughput tables by Modal GPU string.
+- Pin versions in the training image; unpinned installs pulled very new TRL/transformers.
+- Quotes must handle sold-out capacity and fall through to the next option.
+- Hub config lookup (`spikes/hf_config.py`) gives accurate param counts; Qwen's 151,936-token vocab makes the logits tensor large.

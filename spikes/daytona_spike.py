@@ -5,13 +5,19 @@ Docs say GPU sandboxes use the `daytona-gpu` snapshot; GPU-type selection params
 """
 import sys
 
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import CreateSandboxFromImageParams, CreateSandboxFromSnapshotParams, Daytona, GpuType, Resources
 
 if "--yes" not in sys.argv:
     sys.exit("refusing to spend money without --yes")
 
 d = Daytona()
-sb = d.create(CreateSandboxFromSnapshotParams(snapshot="daytona-gpu", auto_stop_interval=5, auto_delete_interval=0))
+if "--rtx4090" in sys.argv:  # request a specific cheaper GPU via a CUDA image
+    params = CreateSandboxFromImageParams(
+        image="nvidia/cuda:12.4.1-base-ubuntu22.04", resources=Resources(gpu=1, gpu_type=GpuType.RTX_4090),
+        ttl_minutes=5, auto_stop_interval=5, auto_delete_interval=0)
+else:
+    params = CreateSandboxFromSnapshotParams(snapshot="daytona-gpu", ttl_minutes=5, auto_stop_interval=5, auto_delete_interval=0)
+sb = d.create(params, timeout=300)
 try:
     print(sb.process.exec("nvidia-smi").result)
 finally:

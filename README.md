@@ -2,7 +2,7 @@
 
 An MCP server that takes a plain-English GPU job request, picks the cheapest provider/GPU that fits (Modal, RunPod, Daytona), launches it, watches it, tears it down, and logs estimated vs. actual cost.
 
-**Status:** M0 (provider spikes). See [PLAN.md](PLAN.md) and [docs/M0-spikes.md](docs/M0-spikes.md). Scope: [docs/GPU Run Agent — MVP Scope.pdf](docs/GPU%20Run%20Agent%20%E2%80%94%20MVP%20Scope.pdf).
+**Status:** M0 complete; M1 (Modal end to end) next. See [PLAN.md](PLAN.md) and [docs/M0-spikes.md](docs/M0-spikes.md). Scope: [docs/GPU Run Agent — MVP Scope.pdf](docs/GPU%20Run%20Agent%20%E2%80%94%20MVP%20Scope.pdf).
 
 ## Spikes
 
