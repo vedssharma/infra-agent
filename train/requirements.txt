@@ -1,0 +1,10 @@
+# Training image dependencies. Pinned: M0 showed unpinned installs pull very new TRL/transformers.
+# Versions match the M0 smoke run (docs/M0-spikes.md) plus the libraries it pulled in.
+torch==2.15.0
+transformers==5.22.1
+trl==1.17.1
+peft==0.21.2
+datasets==5.1.0
+accelerate==1.15.0
+huggingface-hub==2.4.0
+bitsandbytes==0.50.2

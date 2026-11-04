@@ -1,0 +1,14 @@
+{
+  "base_model": "Qwen/Qwen2.5-0.5B",
+  "dataset": "trl-lib/Capybara",
+  "dataset_limit": 2000,
+  "max_steps": 100,
+  "per_device_batch_size": 4,
+  "max_length": 512,
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "logging_steps": 10,
+  "save_steps": 50,
+  "hub_repo": "vedssharma/gpu-agent-qwen2.5-0.5b-lora-m1",
+  "hub_private": true
+}

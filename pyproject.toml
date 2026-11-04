@@ -1,12 +1,15 @@
 [project]
 name = "gpu-agent"
-version = "0.0.1"
+version = "0.1.0"
 description = "MCP server that plans, launches, watches and tears down GPU jobs across Modal, RunPod and Daytona."
 requires-python = ">=3.12"
-dependencies = ["httpx>=0.27", "pydantic>=2.7"]
+dependencies = ["httpx>=0.27", "pydantic>=2.7", "typer>=0.12", "modal>=1.6,<2"]
+
+[project.scripts]
+gpu-agent = "gpu_agent.cli:main"
 
 [project.optional-dependencies]
-spikes = ["modal", "daytona"]
+spikes = ["daytona"]
 
 [dependency-groups]
 dev = ["pytest", "ruff", "pyright"]
@@ -17,3 +20,19 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gpu_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: runs real training on CPU (needs torch/transformers/trl/peft; skipped otherwise)"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["spikes"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.12"
