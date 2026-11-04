@@ -1,0 +1,19 @@
+[project]
+name = "gpu-agent"
+version = "0.0.1"
+description = "MCP server that plans, launches, watches and tears down GPU jobs across Modal, RunPod and Daytona."
+requires-python = ">=3.12"
+dependencies = ["httpx>=0.27", "pydantic>=2.7"]
+
+[project.optional-dependencies]
+spikes = ["modal", "daytona"]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "pyright"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gpu_agent"]
