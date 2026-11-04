@@ -47,7 +47,7 @@ tests/  bench/  docs/
 Each ends in something runnable; move on when it works. Hard **$50** total dev cloud budget.
 
 - **M0 — Spikes. DONE (2026-11-04).** Provider unknowns answered; see `docs/M0-spikes.md`.
-- **M1 — Modal end to end.** Training image + `train.py`, provider base interface, Modal adapter, CLI launch/status/logs/stop. Done: 0.5B LoRA run pushes an adapter to the Hub.
+- **M1 — Modal end to end. BUILT, awaiting first real run.** Training image + `train.py`, provider base interface, Modal adapter, CLI launch/status/logs/stop. Done: 0.5B LoRA run pushes an adapter to the Hub.
 - **M2 — Ledger and guardrails.** SQLite ledger, limits file, per-run budget/TTL, watchdog with orphan sweep, Hub checkpointing. Done: a run is killed at its cap; a deliberately leaked job is swept.
 - **M3 — RunPod and Daytona adapters.** Shared contract test suite (fake + recorded). Dated pricing catalog with stale flags.
 - **M4 — Estimator and `get_quotes`.** Formula, safety margin, OOM auto-retry on next GPU size, throughput table seeded from M1–M3 runs.
@@ -55,6 +55,15 @@ Each ends in something runnable; move on when it works. Hard **$50** total dev c
 - **M6 — Benchmarks and write-up.** ~10-job suite vs. naive A100 baseline; README, demo video, blog post.
 
 Stretch (after benchmarks): spot + auto-resume, learned estimator, read-only dashboard, fourth provider.
+
+## M1 exit criteria
+
+- [x] Training image: `train/Dockerfile`, pinned `train/requirements.txt`, `train/train.py` with JSON-line metrics and Hub push.
+- [x] Provider interface (`providers/base.py`) and a fake provider running the real in-container runner.
+- [x] Modal adapter: deploy, spawn with per-run GPU/TTL, status, logs, stop, list. Log streaming: in-container runner writes chunks to a `modal.Dict` (cursor = chunk index).
+- [x] CLI: `quote`, `launch`, `status`, `logs`, `stop`, `list`.
+- [x] Tests: contract via fake, Modal adapter against an SDK stub, CLI, and real CPU LoRA training through the full stack.
+- [ ] 0.5B LoRA run on Modal pushes an adapter to the Hub (`examples/qwen05b-lora.json`). Needs Modal + HF credentials; record cold start, image build time and cost here.
 
 ## M0 exit criteria
 
