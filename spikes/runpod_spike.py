@@ -24,9 +24,13 @@ def prices() -> None:
         print(g)
 
 
-def pod_roundtrip() -> None:
+def pod_roundtrip(cloud: str) -> None:
     body = {"name": "gpu-agent-spike", "imageName": "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04",
-            "gpuTypeIds": ["NVIDIA GeForce RTX 4090"], "gpuCount": 1, "cloudType": "COMMUNITY",
+            "gpuTypeIds": ["NVIDIA GeForce RTX 3090", "NVIDIA RTX A5000", "NVIDIA GeForce RTX 4090", "NVIDIA RTX A4000",
+                           "NVIDIA L4", "NVIDIA A40", "NVIDIA RTX A6000", "NVIDIA L40", "NVIDIA L40S",
+                           "NVIDIA GeForce RTX 5090", "NVIDIA RTX 6000 Ada Generation", "NVIDIA A100 80GB PCIe",
+                           "NVIDIA A100-SXM4-80GB", "NVIDIA H100 PCIe"], "gpuTypePriority": "availability", "gpuCount": 1,
+            "cloudType": cloud,
             "containerDiskInGb": 20, "dockerStartCmd": ["sleep", "120"]}
     r = httpx.post(f"{REST}/pods", json=body, headers=H, timeout=60)
     print(r.status_code, r.text[:500])
@@ -45,4 +49,9 @@ def pod_roundtrip() -> None:
 if __name__ == "__main__":
     prices()
     if "--yes" in sys.argv:
-        pod_roundtrip()
+        for cloud in ("COMMUNITY", "SECURE"):
+            try:
+                pod_roundtrip(cloud)
+                break
+            except httpx.HTTPStatusError as e:
+                print(f"{cloud} failed: {e.response.status_code}")
